@@ -1,50 +1,79 @@
 package main
 
 import (
+	"manager/internal/job"
+	"manager/internal/queue"
+	"manager/internal/result"
 	"manager/internal/scheduler"
 	"manager/internal/worker"
-	"manager/internal/queue"
-	"manager/internal/structures"
+	"sync"
+
 	"github.com/google/uuid"
-	"time"
+)
+
+const (
+	workersCount = 3
+	jobsCount    = 30
 )
 
 func main() {
-	// _ = godotenv.Load()
-
-	// port := os.Getenv("APP_PORT")
-
-	// if port == "" {
-	// 	log.Fatalf("APP_PORT is not set in the environment variables")
-	// }
-
-	// rdb, err := config.NewRedis()
-	// if err != nil {
-	// 	log.Fatalf("failed to connect to redis: %v", err)
-	// }
-    // defer rdb.Close()
-
-	// server := server.NewServer(rdb, port)
-	// if err := server.Start(); err != nil {
-	// 	log.Fatalf("failed to start server: %v", err)
-	// }
-
+	var appWG sync.WaitGroup
+	var workerWG sync.WaitGroup
+	jobs := make(chan job.Job)
+	results := make(chan result.Result)
 	queue := queue.NewQueue("default")
-	jobs := make([]structures.Job, 10)
-	for i := 0; i < 10; i++ {
-		jobs[i] = structures.Job{
-			UUID: uuid.New().String(),
+
+	seedQueue(&queue)
+	createWorkers(&workerWG, jobs, results)
+	startScheduler(&appWG, &queue, jobs, results)
+	
+	appWG.Add(1)
+	go func() {
+		defer appWG.Done()
+
+		workerWG.Wait()
+		close(results)
+	}()
+
+	appWG.Wait()
+}
+
+func startScheduler(wg *sync.WaitGroup, queue *queue.Queue, jobs chan<- job.Job, results <-chan result.Result) {
+	wg.Add(2)
+	scheduler := scheduler.New(queue, jobs, results)
+	
+	go func() {
+		defer wg.Done()
+
+		scheduler.DispatchJobs()
+	}()
+	go func() {
+		defer wg.Done()
+
+		scheduler.HandleResults()
+	}()
+}
+
+func seedQueue(queue *queue.Queue) {
+	for i := 0; i < jobsCount; i++ {
+		queue.Enqueue(job.Job{
+			UUID:   uuid.New().String(),
 			Status: "pending",
 			Payload: map[string]interface{}{
 				"id": i,
 			},
-			CreatedAt: time.Now(),
-		}
+		})
 	}
-	for _, job := range jobs {
-		queue.Enqueue(&job)
+}
+
+func createWorkers(workerWG *sync.WaitGroup, jobs <-chan job.Job, results chan<- result.Result) {
+	workerWG.Add(workersCount)
+	for i := 0; i < workersCount; i++ {
+		worker := worker.NewWorker(jobs, results)
+		go func() {
+			defer workerWG.Done()
+
+			worker.Run()
+		}()
 	}
-	processor := worker.NewWorker()
-	scheduler := scheduler.NewScheduler(queue, processor)
-	scheduler.Start()
 }
