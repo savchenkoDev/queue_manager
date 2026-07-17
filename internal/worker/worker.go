@@ -2,6 +2,8 @@ package worker
 
 import (
 	"time"
+	"math/rand"
+	"errors"
 
 	"manager/internal/job"
 	"manager/internal/result"
@@ -19,15 +21,20 @@ func NewWorker(jobs <-chan job.Job, results chan<- result.Result) *Worker {
 	return &Worker{UUID: uuid.New().String(), jobs: jobs, results: results}
 }
 
-func (w *Worker) Process(job job.Job) result.Result {
-	time.Sleep(1 * time.Second)             // simulate job processing time
-	success := time.Now().UnixNano()%2 == 0 // simulate job success/failure
-	return result.NewResult(job.UUID, w.UUID, success, nil)
-}
-
-func (w *Worker) Run() {
-	for job := range w.jobs {
-		result := w.Process(job)
-		w.results <- result
+func Run(jobs <-chan *job.Job, results chan<- result.Result) {
+	for job := range jobs {
+		result := process(job)
+		results <- result
 	}
 }
+
+func process(job *job.Job) result.Result {
+	time.Sleep(1 * time.Second)  // simulate job processing time
+	success := rand.Intn(2) % 2 == 0 // simulate job success/failure
+	if success {
+		return result.NewResult(job.UUID, nil)
+	} else {
+		return result.NewResult(job.UUID, errors.New("test error"))
+	}
+}
+
