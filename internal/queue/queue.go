@@ -3,6 +3,8 @@ package queue
 import (
 	"errors"
 	"sync"
+	"sort"
+
 	"manager/internal/job"
 )
 
@@ -24,6 +26,7 @@ func (q *Queue) Push(job job.Job) error {
 	defer q.mu.Unlock()
 	q.mu.Lock()
 	q.jobs = append(q.jobs, job)
+	q.sortByPriority()
 	return nil
 }
 
@@ -40,18 +43,16 @@ func (q *Queue) Pop() (*job.Job, error) {
 	return &job, nil
 }
 
-func (q *Queue) Len() int {
-	defer q.mu.Unlock()
-	
-	q.mu.Lock()
-	len := len(q.jobs)
-	return len
-}
-
 func (q *Queue) IsEmpty() bool {
 	defer q.mu.Unlock()
 	
 	q.mu.Lock()
 	isEmpty := len(q.jobs) == 0
 	return isEmpty
+}
+
+func (q *Queue) sortByPriority() {
+	sort.Slice(q.jobs, func(i, j int) bool {
+		return q.jobs[i].Priority > q.jobs[j].Priority
+	})
 }

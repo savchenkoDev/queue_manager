@@ -1,17 +1,13 @@
 package main
 
 import (
-	"time"
 	"sync"
 
 	"manager/internal/job"
 	"manager/internal/queue"
-	"manager/internal/types"
 	"manager/internal/result"
 	"manager/internal/scheduler"
 	"manager/internal/worker"
-
-	"github.com/google/uuid"
 )
 
 const (
@@ -58,18 +54,9 @@ func startScheduler(wg *sync.WaitGroup, queue *queue.Queue, jobs chan<- *job.Job
 }
 
 func seedQueue(queue *queue.Queue) {
+	priorities := []job.Priority{job.Low, job.Normal, job.High}
 	for i := 0; i < jobsCount; i++ {
-		queue.Push(job.Job{
-			UUID:   uuid.New().String(),
-			Status: types.PENDING,
-			Attempts: 0,
-			MaxRetries: 3,
-			Payload: map[string]any{
-				"id": i,
-			},
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		})
+		queue.Push(job.NewJob(map[string]any{"id": i}, priorities[i%len(priorities)], 3))
 	}
 }
 
