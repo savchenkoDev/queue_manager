@@ -29,12 +29,11 @@ func Run(jobs <-chan *job.Job, results chan<- result.Result) {
 }
 
 func process(job *job.Job) result.Result {
-	time.Sleep(1 * time.Second)  // simulate job processing time
+	time.Sleep(1 * time.Second) // simulate job processing time
 	success := rand.Intn(2) % 2 == 0 // simulate job success/failure
 	if success {
 		return result.NewResult(job.UUID, nil)
-	} else {
-		return result.NewResult(job.UUID, errors.New("test error"))
 	}
+	return result.NewResult(job.UUID, errors.New("test error"))
 }
 

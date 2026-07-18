@@ -1,7 +1,11 @@
 package main
 
 import (
+	"context"
 	"sync"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"manager/internal/job"
 	"manager/internal/queue"
@@ -12,7 +16,7 @@ import (
 
 const (
 	workersCount = 3
-	jobsCount    = 10
+	jobsCount    = 100
 )
 
 func main() {
@@ -21,10 +25,12 @@ func main() {
 	jobs := make(chan *job.Job)
 	results := make(chan result.Result)
 	queue := queue.NewQueue("default")
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	seedQueue(&queue)
 	createWorkers(&workerWG, jobs, results)
-	startScheduler(&appWG, &queue, jobs, results)
+	startScheduler(ctx,&appWG, &queue, jobs, results)
 	
 	appWG.Add(1)
 	go func() {
@@ -34,23 +40,10 @@ func main() {
 		close(results)
 	}()
 
-	appWG.Wait()
-}
-
-func startScheduler(wg *sync.WaitGroup, queue *queue.Queue, jobs chan<- *job.Job, results <-chan result.Result) {
-	wg.Add(2)
-	scheduler := scheduler.New(queue, jobs, results)
 	
-	go func() {
-		defer wg.Done()
 
-		scheduler.DispatchJobs()
-	}()
-	go func() {
-		defer wg.Done()
-
-		scheduler.HandleResults()
-	}()
+	appWG.Wait()
+	stop()
 }
 
 func seedQueue(queue *queue.Queue) {
@@ -69,4 +62,20 @@ func createWorkers(workerWG *sync.WaitGroup, jobs <-chan *job.Job, results chan<
 			worker.Run(jobs, results)
 		}()
 	}
+}
+
+func startScheduler(ctx context.Context, wg *sync.WaitGroup, queue *queue.Queue, jobs chan<- *job.Job, results <-chan result.Result) {
+	wg.Add(2)
+	scheduler := scheduler.New(queue, jobs, results)
+	
+	go func() {
+		defer wg.Done()
+
+		scheduler.DispatchJobs(ctx)
+	}()
+	go func() {
+		defer wg.Done()
+
+		scheduler.HandleResults()
+	}()
 }
