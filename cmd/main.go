@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
-	"sync"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"manager/internal/job"
+	"manager/internal/processor"
 	"manager/internal/queue"
 	"manager/internal/result"
 	"manager/internal/scheduler"
@@ -30,8 +31,8 @@ func main() {
 
 	seedQueue(&queue)
 	createWorkers(&workerWG, jobs, results)
-	startScheduler(ctx,&appWG, &queue, jobs, results)
-	
+	startScheduler(ctx, &appWG, &queue, jobs, results)
+
 	appWG.Add(1)
 	go func() {
 		defer appWG.Done()
@@ -39,8 +40,6 @@ func main() {
 		workerWG.Wait()
 		close(results)
 	}()
-
-	
 
 	appWG.Wait()
 	stop()
@@ -55,9 +54,12 @@ func seedQueue(queue *queue.Queue) {
 
 func createWorkers(workerWG *sync.WaitGroup, jobs <-chan *job.Job, results chan<- result.Result) {
 	workerWG.Add(workersCount)
+	processor := processor.RealProcessor{}
 	for i := 0; i < workersCount; i++ {
 		go func() {
 			defer workerWG.Done()
+
+			worker := worker.NewWorker(&processor)
 
 			worker.Run(jobs, results)
 		}()
@@ -67,7 +69,7 @@ func createWorkers(workerWG *sync.WaitGroup, jobs <-chan *job.Job, results chan<
 func startScheduler(ctx context.Context, wg *sync.WaitGroup, queue *queue.Queue, jobs chan<- *job.Job, results <-chan result.Result) {
 	wg.Add(2)
 	scheduler := scheduler.New(queue, jobs, results)
-	
+
 	go func() {
 		defer wg.Done()
 

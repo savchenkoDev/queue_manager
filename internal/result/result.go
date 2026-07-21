@@ -4,7 +4,7 @@ import "fmt"
 
 type Result struct {
 	JobUUID string
-	Error error
+	Error   error
 }
 
 func NewResult(jobUUID string, error error) Result {

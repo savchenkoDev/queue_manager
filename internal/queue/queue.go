@@ -2,8 +2,8 @@ package queue
 
 import (
 	"errors"
-	"sync"
 	"sort"
+	"sync"
 
 	"manager/internal/job"
 )
@@ -11,14 +11,14 @@ import (
 type Queue struct {
 	name string
 	jobs []job.Job
-	mu sync.Mutex
+	mu   sync.Mutex
 }
 
 func NewQueue(name string) Queue {
 	return Queue{
 		name: name,
 		jobs: []job.Job{},
-		mu: sync.Mutex{},
+		mu:   sync.Mutex{},
 	}
 }
 
@@ -45,7 +45,7 @@ func (q *Queue) Pop() (*job.Job, error) {
 
 func (q *Queue) IsEmpty() bool {
 	defer q.mu.Unlock()
-	
+
 	q.mu.Lock()
 	isEmpty := len(q.jobs) == 0
 	return isEmpty

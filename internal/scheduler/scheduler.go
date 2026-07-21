@@ -43,7 +43,7 @@ func (s *Scheduler) DispatchJobs(ctx context.Context) {
 			close(s.jobs)
 			return
 		}
-	
+
 		job, _ := s.queue.Pop()
 
 		if job != nil {
