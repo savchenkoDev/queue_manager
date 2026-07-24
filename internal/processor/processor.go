@@ -24,3 +24,18 @@ func (p *RealProcessor) Process(job *job.Job) result.Result {
 	}
 	return result.NewResult(job.UUID, errors.New("test error"))
 }
+
+// SpyProcessor is a processor that records the number of calls and the jobs it received
+// It is used to test the processor
+// It is not used in production
+type SpyProcessor struct {
+    Results      []result.Result
+    Calls        int
+    ReceivedJobs []*job.Job
+}
+
+func (p *SpyProcessor) Process(job *job.Job) result.Result {
+    p.Calls++
+    p.ReceivedJobs = append(p.ReceivedJobs, job)
+    return p.Results[p.Calls-1]
+}

@@ -30,7 +30,7 @@ func main() {
 	defer stop()
 
 	seedQueue(&queue)
-	createWorkers(&workerWG, jobs, results)
+	createWorkers(ctx, &workerWG, jobs, results)
 	startScheduler(ctx, &appWG, &queue, jobs, results)
 
 	appWG.Add(1)
@@ -52,14 +52,14 @@ func seedQueue(queue *queue.Queue) {
 	}
 }
 
-func createWorkers(workerWG *sync.WaitGroup, jobs <-chan *job.Job, results chan<- result.Result) {
+func createWorkers(ctx context.Context, workerWG *sync.WaitGroup, jobs <-chan *job.Job, results chan<- result.Result) {
 	workerWG.Add(workersCount)
 	processor := processor.RealProcessor{}
 	for i := 0; i < workersCount; i++ {
 		go func() {
 			defer workerWG.Done()
 
-			worker := worker.NewWorker(&processor)
+			worker := worker.NewWorker(ctx, &processor)
 
 			worker.Run(jobs, results)
 		}()
