@@ -30,25 +30,37 @@ func (q *Queue) Push(job job.Job) error {
 	return nil
 }
 
-func (q *Queue) Pop() (*job.Job, error) {
-	defer q.mu.Unlock()
-
-	q.mu.Lock()
-	if len(q.jobs) == 0 {
+func (q *Queue) Peek() (*job.Job, error) {
+	if q.IsEmpty() {
 		return nil, errors.New("queue is empty")
 	}
-	job := q.jobs[0]
-	q.jobs = q.jobs[1:len(q.jobs)]
+	return &q.jobs[0], nil
+}
 
-	return &job, nil
+func (q *Queue) Remove(uuid string) error {
+	if q.IsEmpty() {
+		return errors.New("queue is empty")
+	}
+	defer q.mu.Unlock()
+	q.mu.Lock()
+	
+	for i, j := range q.jobs {
+		if j.UUID == uuid {
+			q.jobs = append(q.jobs[:i], q.jobs[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("job not found")
+}
+
+func (q *Queue) Size() int {
+	defer q.mu.Unlock()
+	q.mu.Lock()
+	return len(q.jobs)
 }
 
 func (q *Queue) IsEmpty() bool {
-	defer q.mu.Unlock()
-
-	q.mu.Lock()
-	isEmpty := len(q.jobs) == 0
-	return isEmpty
+	return q.Size() == 0
 }
 
 func (q *Queue) sortByPriority() {
