@@ -17,7 +17,7 @@ import (
 
 const (
 	workersCount = 3
-	jobsCount    = 100
+	jobsCount    = 10
 )
 
 func main() {
@@ -67,17 +67,12 @@ func createWorkers(ctx context.Context, workerWG *sync.WaitGroup, jobs <-chan *j
 }
 
 func startScheduler(ctx context.Context, wg *sync.WaitGroup, queue *queue.Queue, jobs chan<- *job.Job, results <-chan result.Result) {
-	wg.Add(2)
+	wg.Add(1)
 	scheduler := scheduler.New(queue, jobs, results)
 
 	go func() {
 		defer wg.Done()
 
-		scheduler.DispatchJobs(ctx)
-	}()
-	go func() {
-		defer wg.Done()
-
-		scheduler.HandleResults()
+		scheduler.Run(ctx)
 	}()
 }
